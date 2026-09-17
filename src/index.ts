@@ -136,7 +136,7 @@ export default {
           event: "petition_pulse_failed",
         })
       );
-      throw new Error(result.errorCode);
+      return;
     }
 
     await recordSuccess(env.DB, checkedAt, result.snapshot);
