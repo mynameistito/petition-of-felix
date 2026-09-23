@@ -9,6 +9,7 @@ The monitored petition is:
 ## API
 
 - `GET /` renders a transparent, browser-source-ready signature overlay. It refreshes from the Worker API every 15 seconds while the source pulse remains once per minute.
+- Add `?demo` to the overlay URL to try the rolling counter with `+1`, `+10`, and `Reset` controls. Demo changes are local to that browser and do not affect petition data.
 - `GET /api/current` returns the newest successful count and the outcome of the most recent pulse.
 - `GET /api/history?limit=100` returns recent pulses, newest first. The limit is constrained to 1–1,440.
 - `GET /health` returns `200` only when the latest pulse succeeded within the last three minutes.
