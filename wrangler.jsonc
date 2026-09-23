@@ -21,4 +21,12 @@
       "migrations_dir": "migrations",
     },
   ],
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_id": "be3e18b3-5faf-4a70-826d-7a98fc193c76",
+      },
+    ],
+  },
 }
