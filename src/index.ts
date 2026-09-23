@@ -15,7 +15,7 @@ const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
 } as const;
 
-const HEALTH_MAX_AGE_MS = 3 * 60 * 1000;
+const HEALTH_MAX_AGE_MS = 8 * 60 * 1000;
 
 type PublicPulse = Readonly<{
   checkedAt: string;
