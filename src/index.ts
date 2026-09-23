@@ -1,13 +1,13 @@
-import { fetchPetitionSnapshot, PETITION_ID } from "./petition";
 import { renderOverlayHtml } from "./overlay";
+import { fetchPetitionSnapshot, PETITION_ID } from "./petition";
 import {
   getHistory,
   getLatestCheck,
   getLatestSuccess,
   recordFailure,
   recordSuccess,
-  type PulseRow,
 } from "./storage";
+import type { PulseRow } from "./storage";
 
 const JSON_HEADERS = {
   "access-control-allow-origin": "*",
@@ -44,7 +44,7 @@ const parseHistoryLimit = (value: string | null): number | null => {
   if (value === null) {
     return 100;
   }
-  if (!/^\d+$/.test(value)) {
+  if (!/^\d+$/u.test(value)) {
     return null;
   }
   const parsed = Number(value);
@@ -81,9 +81,7 @@ const handleFetch = async (request: Request, env: Env): Promise<Response> => {
       latestCheck: toPublicPulse(latestCheck),
       petitionId: PETITION_ID,
       signatureCount: latestSuccess.signature_count,
-      signatureCountCheckedAt: new Date(
-        latestSuccess.checked_at
-      ).toISOString(),
+      signatureCountCheckedAt: new Date(latestSuccess.checked_at).toISOString(),
     });
   }
 
@@ -108,8 +106,7 @@ const handleFetch = async (request: Request, env: Env): Promise<Response> => {
     return json(
       {
         healthy,
-        latestCheck:
-          latestCheck === null ? null : toPublicPulse(latestCheck),
+        latestCheck: latestCheck === null ? null : toPublicPulse(latestCheck),
       },
       healthy ? 200 : 503
     );
@@ -120,7 +117,7 @@ const handleFetch = async (request: Request, env: Env): Promise<Response> => {
 
 /** Cloudflare Worker entry point for the public API and minute cron pulse. */
 export default {
-  async fetch(request, env): Promise<Response> {
+  fetch(request, env): Promise<Response> {
     return handleFetch(request, env);
   },
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import worker from "../src/index";
 import { PETITION_ID } from "../src/petition";
 
@@ -17,9 +18,9 @@ const fakeDatabase = (): { DB: D1Database; runs: RecordedRun[] } => {
   const DB = {
     prepare: (sql: string) => ({
       bind: (...args: unknown[]) => ({
-        run: async () => {
+        run: () => {
           runs.push({ args, sql });
-          return { success: true };
+          return Promise.resolve({ success: true });
         },
       }),
     }),
@@ -27,22 +28,24 @@ const fakeDatabase = (): { DB: D1Database; runs: RecordedRun[] } => {
   return { DB, runs };
 };
 
-const invokeScheduled = async (DB: D1Database, scheduledTime: number) =>
+const invokeScheduled = (DB: D1Database, scheduledTime: number) =>
   worker.scheduled(
     { scheduledTime } as ScheduledController,
     { DB } as unknown as Env
   );
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 describe("scheduled pulse", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("records a failed pulse and resolves when upstream returns an HTTP error", async () => {
     const checkedAt = 1_789_650_885_000;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(null, { status: 503 }))
+      vi.fn<typeof fetch>(() =>
+        Promise.resolve(new Response(null, { status: 503 }))
+      )
     );
     const { DB, runs } = fakeDatabase();
 
@@ -50,14 +53,14 @@ describe("scheduled pulse", () => {
 
     expect(runs).toHaveLength(1);
     expect(runs[0]?.sql).toContain("INSERT INTO pulse_checks");
-    expect(runs[0]?.args).toEqual([checkedAt, "upstream_http_error"]);
+    expect(runs[0]?.args).toStrictEqual([checkedAt, "upstream_http_error"]);
   });
 
   it("records a successful pulse when upstream responds", async () => {
     const checkedAt = 1_789_650_885_000;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(validPayload))
+      vi.fn<typeof fetch>(() => Promise.resolve(Response.json(validPayload)))
     );
     const { DB, runs } = fakeDatabase();
 

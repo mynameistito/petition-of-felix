@@ -1,7 +1,4 @@
-import type {
-  PetitionFetchErrorCode,
-  PetitionSnapshot,
-} from "./petition";
+import type { PetitionFetchErrorCode, PetitionSnapshot } from "./petition";
 
 /** A persisted pulse row as returned by D1. */
 export type PulseRow = Readonly<{
@@ -15,11 +12,11 @@ export type PulseRow = Readonly<{
 }>;
 
 /** Records a successful check, idempotently keyed by its scheduled timestamp. */
-export async function recordSuccess(
+export const recordSuccess = async (
   database: D1Database,
   checkedAt: number,
   snapshot: PetitionSnapshot
-): Promise<void> {
+): Promise<void> => {
   await database
     .prepare(
       `INSERT INTO pulse_checks (
@@ -41,14 +38,14 @@ export async function recordSuccess(
       snapshot.closingAt
     )
     .run();
-}
+};
 
 /** Records a classified failed check without persisting arbitrary error text. */
-export async function recordFailure(
+export const recordFailure = async (
   database: D1Database,
   checkedAt: number,
   errorCode: PetitionFetchErrorCode
-): Promise<void> {
+): Promise<void> => {
   await database
     .prepare(
       `INSERT INTO pulse_checks (
@@ -64,36 +61,34 @@ export async function recordFailure(
     )
     .bind(checkedAt, errorCode)
     .run();
-}
+};
 
 /** Returns the most recently attempted pulse, if one exists. */
-export async function getLatestCheck(
+export const getLatestCheck = (
   database: D1Database
-): Promise<PulseRow | null> {
-  return database
+): Promise<PulseRow | null> =>
+  database
     .prepare("SELECT * FROM pulse_checks ORDER BY checked_at DESC LIMIT 1")
     .first<PulseRow>();
-}
 
 /** Returns the most recent successful pulse, if one exists. */
-export async function getLatestSuccess(
+export const getLatestSuccess = (
   database: D1Database
-): Promise<PulseRow | null> {
-  return database
+): Promise<PulseRow | null> =>
+  database
     .prepare(
       "SELECT * FROM pulse_checks WHERE outcome = 'ok' ORDER BY checked_at DESC LIMIT 1"
     )
     .first<PulseRow>();
-}
 
 /** Returns up to the requested number of pulse rows, newest first. */
-export async function getHistory(
+export const getHistory = async (
   database: D1Database,
   limit: number
-): Promise<readonly PulseRow[]> {
+): Promise<readonly PulseRow[]> => {
   const result = await database
     .prepare("SELECT * FROM pulse_checks ORDER BY checked_at DESC LIMIT ?")
     .bind(limit)
     .all<PulseRow>();
   return result.results;
-}
+};
