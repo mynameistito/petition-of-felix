@@ -2,8 +2,7 @@
 export const PETITION_ID = "1f10c734-0815-4699-b710-08dec0efef41";
 
 /** The public Parliament endpoint that supplies the live signature count. */
-export const PETITION_API_URL =
-  `https://petitions.parliament.nz/api/petition/${PETITION_ID}`;
+export const PETITION_API_URL = `https://petitions.parliament.nz/api/petition/${PETITION_ID}`;
 
 /** A parsed, trusted projection of the upstream petition payload. */
 export type PetitionSnapshot = Readonly<{
@@ -29,11 +28,19 @@ type JsonRecord = Readonly<Record<string, unknown>>;
 const isRecord = (value: unknown): value is JsonRecord =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0;
+
+const isValidSignatureCount = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+
 /**
  * Parses the untrusted Parliament API payload into the exact fields used by the
  * checker. Returns null when any required invariant is missing.
  */
-export function parsePetitionPayload(value: unknown): PetitionSnapshot | null {
+export const parsePetitionPayload = (
+  value: unknown
+): PetitionSnapshot | null => {
   if (
     !isRecord(value) ||
     value["id"] !== PETITION_ID ||
@@ -43,16 +50,12 @@ export function parsePetitionPayload(value: unknown): PetitionSnapshot | null {
   }
 
   const { signatureCount, isClosed, signatureClosingDate } = value;
-  const statusName = value["status"]["statusName"];
+  const { statusName } = value["status"];
   if (
-    typeof signatureCount !== "number" ||
-    !Number.isSafeInteger(signatureCount) ||
-    signatureCount < 0 ||
+    !isValidSignatureCount(signatureCount) ||
     typeof isClosed !== "boolean" ||
-    typeof signatureClosingDate !== "string" ||
-    signatureClosingDate.length === 0 ||
-    typeof statusName !== "string" ||
-    statusName.length === 0
+    !isNonEmptyString(signatureClosingDate) ||
+    !isNonEmptyString(statusName)
   ) {
     return null;
   }
@@ -63,16 +66,16 @@ export function parsePetitionPayload(value: unknown): PetitionSnapshot | null {
     signatureCount,
     status: statusName,
   };
-}
+};
 
 /**
  * Fetches one petition snapshot. Network, HTTP, and payload failures are
  * classified as values so callers can record the failed pulse without logging
  * arbitrary upstream content.
  */
-export async function fetchPetitionSnapshot(
+export const fetchPetitionSnapshot = async (
   fetcher: typeof fetch = fetch
-): Promise<PetitionFetchResult> {
+): Promise<PetitionFetchResult> => {
   let response: Response;
   try {
     response = await fetcher(PETITION_API_URL, {
@@ -100,4 +103,4 @@ export async function fetchPetitionSnapshot(
   return snapshot === null
     ? { errorCode: "invalid_payload", ok: false }
     : { ok: true, snapshot };
-}
+};

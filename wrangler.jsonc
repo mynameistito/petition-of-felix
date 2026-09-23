@@ -8,17 +8,17 @@
   "workers_dev": true,
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
   },
   "triggers": {
-    "crons": ["* * * * *"]
+    "crons": ["* * * * *"],
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "petition-of-felix-pulse",
       "database_id": "2816befd-8025-4f34-9052-ff1bc4f8dda6",
-      "migrations_dir": "migrations"
-    }
-  ]
+      "migrations_dir": "migrations",
+    },
+  ],
 }

@@ -2,8 +2,7 @@
  * Renders the dependency-free broadcast overlay served at the Worker root.
  * The document canvas remains transparent for OBS/browser-source compositing.
  */
-export function renderOverlayHtml(): string {
-  return `<!doctype html>
+export const renderOverlayHtml = (): string => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -104,5 +103,4 @@ export function renderOverlayHtml(): string {
       setInterval(() => void refresh(), 15000);
     </script>
   </body>
-</html>`;
-}
+  </html>`;

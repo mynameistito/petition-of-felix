@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+
+import { renderOverlayHtml } from "../src/overlay";
 import {
   fetchPetitionSnapshot,
   parsePetitionPayload,
   PETITION_API_URL,
   PETITION_ID,
 } from "../src/petition";
-import { renderOverlayHtml } from "../src/overlay";
 
 const validPayload = {
   id: PETITION_ID,
@@ -15,9 +16,9 @@ const validPayload = {
   status: { statusName: "Open" },
 };
 
-describe("parsePetitionPayload", () => {
+describe(parsePetitionPayload, () => {
   it("projects a valid Parliament payload", () => {
-    expect(parsePetitionPayload(validPayload)).toEqual({
+    expect(parsePetitionPayload(validPayload)).toStrictEqual({
       closingAt: "2027-01-15T00:00:00+13:00",
       isClosed: false,
       signatureCount: 12_357,
@@ -37,13 +38,13 @@ describe("parsePetitionPayload", () => {
   });
 });
 
-describe("fetchPetitionSnapshot", () => {
+describe(fetchPetitionSnapshot, () => {
   it("calls the public JSON endpoint and parses the response", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      Response.json(validPayload)
-    );
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json(validPayload));
 
-    await expect(fetchPetitionSnapshot(fetcher)).resolves.toEqual({
+    await expect(fetchPetitionSnapshot(fetcher)).resolves.toStrictEqual({
       ok: true,
       snapshot: {
         closingAt: "2027-01-15T00:00:00+13:00",
@@ -71,22 +72,22 @@ describe("fetchPetitionSnapshot", () => {
       .fn<typeof fetch>()
       .mockResolvedValue(new Response("nope", { status: 200 }));
 
-    await expect(fetchPetitionSnapshot(unreachable)).resolves.toEqual({
+    await expect(fetchPetitionSnapshot(unreachable)).resolves.toStrictEqual({
       errorCode: "upstream_unreachable",
       ok: false,
     });
-    await expect(fetchPetitionSnapshot(httpError)).resolves.toEqual({
+    await expect(fetchPetitionSnapshot(httpError)).resolves.toStrictEqual({
       errorCode: "upstream_http_error",
       ok: false,
     });
-    await expect(fetchPetitionSnapshot(invalidJson)).resolves.toEqual({
+    await expect(fetchPetitionSnapshot(invalidJson)).resolves.toStrictEqual({
       errorCode: "invalid_payload",
       ok: false,
     });
   });
 });
 
-describe("renderOverlayHtml", () => {
+describe(renderOverlayHtml, () => {
   it("renders a transparent live-count overlay", () => {
     const html = renderOverlayHtml();
 
