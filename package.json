@@ -15,9 +15,6 @@
     "fix": "ultracite fix",
     "prepare": "lefthook install"
   },
-  "dependencies": {
-    "@kitlangton/rolling-number": "^0.4.1"
-  },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@typescript/native": "npm:typescript@^7.0.2",

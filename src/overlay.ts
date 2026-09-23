@@ -104,12 +104,13 @@ export const renderOverlayHtml = (): string => `<!doctype html>
     </main>
     <script>
       import('https://esm.sh/@kitlangton/rolling-number@0.4.1').then(({ createRollingNumber }) => {
-        const counter = createRollingNumber(document.querySelector('#count'), {
-          value: 0,
+        const count = document.querySelector('#count');
+        const counter = createRollingNumber(count, {
+          value: Number(count.dataset.value ?? 0),
           locales: 'en-NZ',
           duration: 650,
         });
-        document.querySelector('#count').dataset.rollingReady = 'true';
+        count.dataset.rollingReady = 'true';
         window.rollingCounter = counter;
       });
     </script>
@@ -129,6 +130,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       }
 
       function setCount(value) {
+        count.dataset.value = String(value);
         count.setAttribute("aria-label", formatter.format(value));
         if (window.rollingCounter) {
           window.rollingCounter.update({ value });
