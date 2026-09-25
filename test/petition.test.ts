@@ -76,6 +76,7 @@ describe(fetchPetitionSnapshot, () => {
       errorCode: "upstream_unreachable",
       ok: false,
     });
+    expect(unreachable).toHaveBeenCalledTimes(3);
     await expect(fetchPetitionSnapshot(httpError)).resolves.toStrictEqual({
       errorCode: "upstream_http_error",
       ok: false,
@@ -87,9 +88,14 @@ describe(fetchPetitionSnapshot, () => {
   });
 
   it("retries transient upstream failures before returning a snapshot", async () => {
+    const cancelBody = vi.fn<() => void>();
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(new ReadableStream({ cancel: cancelBody }), {
+          status: 503,
+        })
+      )
       .mockResolvedValueOnce(Response.json(validPayload));
 
     await expect(fetchPetitionSnapshot(fetcher)).resolves.toStrictEqual({
@@ -102,7 +108,23 @@ describe(fetchPetitionSnapshot, () => {
       },
     });
     expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(cancelBody).toHaveBeenCalledOnce();
   });
+
+  it.each([429, 503])(
+    "makes exactly three attempts for persistent HTTP %i responses",
+    async (status) => {
+      const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(null, { status }));
+
+      await expect(fetchPetitionSnapshot(fetcher)).resolves.toStrictEqual({
+        errorCode: "upstream_http_error",
+        ok: false,
+      });
+      expect(fetcher).toHaveBeenCalledTimes(3);
+    }
+  );
 
   it("does not retry permanent client errors", async () => {
     const fetcher = vi

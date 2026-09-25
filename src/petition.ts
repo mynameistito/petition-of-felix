@@ -13,6 +13,14 @@ const waitBeforeRetry = (attempt: number): Promise<void> =>
     setTimeout(() => resolve(), RETRY_DELAY_MS * 2 ** attempt);
   });
 
+const cancelResponseBody = async (response: Response): Promise<void> => {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Preserve the retry if best-effort stream cancellation fails.
+  }
+};
+
 /** A parsed, trusted projection of the upstream petition payload. */
 export type PetitionSnapshot = Readonly<{
   closingAt: string;
@@ -110,6 +118,7 @@ export const fetchPetitionSnapshot = async (
       return response;
     }
 
+    await cancelResponseBody(response);
     await waitBeforeRetry(attempt);
     return fetchResponse(attempt + 1);
   };
