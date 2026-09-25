@@ -4,6 +4,15 @@ export const PETITION_ID = "1f10c734-0815-4699-b710-08dec0efef41";
 /** The public Parliament endpoint that supplies the live signature count. */
 export const PETITION_API_URL = `https://petitions.parliament.nz/api/petition/${PETITION_ID}`;
 
+const MAX_FETCH_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 250;
+
+const waitBeforeRetry = (attempt: number): Promise<void> =>
+  // eslint-disable-next-line promise/avoid-new -- Use the Workers-compatible timer for bounded backoff.
+  new Promise((resolve) => {
+    setTimeout(() => resolve(), RETRY_DELAY_MS * 2 ** attempt);
+  });
+
 /** A parsed, trusted projection of the upstream petition payload. */
 export type PetitionSnapshot = Readonly<{
   closingAt: string;
@@ -76,18 +85,39 @@ export const parsePetitionPayload = (
 export const fetchPetitionSnapshot = async (
   fetcher: typeof fetch = fetch
 ): Promise<PetitionFetchResult> => {
-  let response: Response;
-  try {
-    response = await fetcher(PETITION_API_URL, {
-      headers: {
-        accept: "application/json",
-        "user-agent": "petition-of-felix/1.0",
-      },
-    });
-  } catch {
+  const fetchResponse = async (attempt = 0): Promise<Response | null> => {
+    let response: Response;
+    try {
+      response = await fetcher(PETITION_API_URL, {
+        headers: {
+          accept: "application/json",
+          "user-agent": "petition-of-felix/1.0",
+        },
+      });
+    } catch {
+      if (attempt < MAX_FETCH_ATTEMPTS - 1) {
+        await waitBeforeRetry(attempt);
+        return fetchResponse(attempt + 1);
+      }
+      return null;
+    }
+
+    if (
+      response.ok ||
+      (response.status < 500 && response.status !== 429) ||
+      attempt === MAX_FETCH_ATTEMPTS - 1
+    ) {
+      return response;
+    }
+
+    await waitBeforeRetry(attempt);
+    return fetchResponse(attempt + 1);
+  };
+
+  const response = await fetchResponse();
+  if (response === null) {
     return { errorCode: "upstream_unreachable", ok: false };
   }
-
   if (!response.ok) {
     return { errorCode: "upstream_http_error", ok: false };
   }

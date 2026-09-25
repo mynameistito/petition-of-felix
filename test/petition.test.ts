@@ -85,6 +85,36 @@ describe(fetchPetitionSnapshot, () => {
       ok: false,
     });
   });
+
+  it("retries transient upstream failures before returning a snapshot", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json(validPayload));
+
+    await expect(fetchPetitionSnapshot(fetcher)).resolves.toStrictEqual({
+      ok: true,
+      snapshot: {
+        closingAt: "2027-01-15T00:00:00+13:00",
+        isClosed: false,
+        signatureCount: 12_357,
+        status: "Open",
+      },
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry permanent client errors", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 404 }));
+
+    await expect(fetchPetitionSnapshot(fetcher)).resolves.toStrictEqual({
+      errorCode: "upstream_http_error",
+      ok: false,
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
 });
 
 describe(renderOverlayHtml, () => {
