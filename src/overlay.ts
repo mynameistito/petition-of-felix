@@ -135,7 +135,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         const counter = createRollingNumber(count, {
           value: Number(count.dataset.value ?? 0),
           locales: 'en-NZ',
-          duration: 650,
+          duration: 100,
           stagger: 'none',
         });
         count.dataset.rollingReady = 'true';
@@ -166,6 +166,38 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         } else {
           count.textContent = formatter.format(value);
         }
+      }
+
+      let countFrame = null;
+      let animationTarget = null;
+
+      function animateCountTo(value) {
+        const current = Number(count.dataset.value);
+        if (!Number.isSafeInteger(current)) {
+          setCount(value);
+          return;
+        }
+        if (animationTarget === value && countFrame !== null) return;
+        if (countFrame !== null) cancelAnimationFrame(countFrame);
+        if (current === value) {
+          animationTarget = value;
+          countFrame = null;
+          return;
+        }
+
+        animationTarget = value;
+        const step = current < value ? 1 : -1;
+        function advance() {
+          const next = Number(count.dataset.value) + step;
+          setCount(next);
+          if (next === value) {
+            countFrame = null;
+            animationTarget = null;
+            return;
+          }
+          countFrame = requestAnimationFrame(advance);
+        }
+        countFrame = requestAnimationFrame(advance);
       }
 
       if (demo) setCount(0);
@@ -236,7 +268,14 @@ export const renderOverlayHtml = (): string => `<!doctype html>
 
       function applyCount(value) {
         if (!Number.isSafeInteger(value) || value < 0) return;
-        if (Number(count.dataset.value) !== value) setCount(value);
+        const current = Number(count.dataset.value);
+        if (current !== value) {
+          if (hasValue) {
+            animateCountTo(value);
+          } else {
+            setCount(value);
+          }
+        }
         status.textContent = demo ? "Demo" : "Signed";
         overlay.dataset.state = "ready";
         hasValue = true;
@@ -324,6 +363,9 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       window.addEventListener("pagehide", () => {
         stopped = true;
         if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+        if (countFrame !== null) cancelAnimationFrame(countFrame);
+        countFrame = null;
+        animationTarget = null;
         socket?.close();
         socket = null;
       }, { once: true });
