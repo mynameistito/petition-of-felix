@@ -95,7 +95,6 @@ describe(renderOverlayHtml, () => {
     expect(html).toContain('fetch("/api/current"');
     expect(html).toContain('class="status"');
     expect(html).toContain('class="count"');
-    expect(html).toContain("stagger: 'none'");
   });
 
   it("uses separate shared sockets for live and demo counters", () => {
@@ -119,5 +118,13 @@ describe(renderOverlayHtml, () => {
     expect(html).toContain('data-add="1000">+1000</button>');
     expect(html).toContain('id="custom-amount" type="number"');
     expect(html).toContain('id="live-count"');
+  });
+
+  it("counts through each intermediate value for multi-count updates", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain("stagger: 'none'");
+    expect(html).toContain("const step = current < value ? 1 : -1");
+    expect(html).toContain("countFrame = requestAnimationFrame(advance)");
   });
 });
