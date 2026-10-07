@@ -50,5 +50,17 @@
         "database_id": "be3e18b3-5faf-4a70-826d-7a98fc193c76",
       },
     ],
+    "durable_objects": {
+      "bindings": [
+        {
+          "name": "PETITION_REALTIME",
+          "class_name": "PetitionRealtime",
+        },
+        {
+          "name": "PETITION_DEMO_REALTIME",
+          "class_name": "PetitionDemoRealtime",
+        },
+      ],
+    },
   },
 }
