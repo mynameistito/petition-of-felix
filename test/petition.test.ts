@@ -97,15 +97,17 @@ describe(renderOverlayHtml, () => {
     expect(html).toContain('class="count"');
   });
 
-  it("uses a shared WebSocket and keeps demo mode local", () => {
+  it("uses separate shared sockets for live and demo counters", () => {
     const html = renderOverlayHtml();
 
+    expect(html).toContain('const endpoint = demo ? "/demo-ws" : "/ws"');
     expect(html).toContain(
-      'new WebSocket(protocol + "//" + location.host + "/ws")'
+      'sendDemo({ amount: Number(button.dataset.add), type: "add" })'
     );
+    expect(html).toContain('sendDemo({ type: "reset" })');
     expect(html).toContain("if (!demo)");
     expect(html).toContain(
-      "if (stopped || demo || socket !== null || !navigator.onLine)"
+      "if (stopped || socket !== null || !navigator.onLine)"
     );
   });
 });

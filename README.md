@@ -10,7 +10,7 @@ The monitored petition is:
 
 - `GET /` renders a transparent, browser-source-ready signature overlay. It receives live updates over a WebSocket and reconnects with bounded exponential backoff.
 - `GET /ws` upgrades to the petition's shared WebSocket coordinator. A new connection receives the latest persisted count immediately, then receives only changed authoritative counts.
-- Add `?demo` to the overlay URL to try the rolling counter with `+1`, `+10`, and `Reset` controls. Demo changes are local to that browser and do not affect petition data.
+- Add `?demo` to the overlay URL to try the rolling counter with `+1`, `+10`, and `Reset` controls. Demo actions sync across browsers using a separate demo-only Durable Object and never touch the petition count, Parliament API, or D1.
 - `GET /api/current` returns the newest successful count and the outcome of the most recent persisted check. It remains available as an HTTP fallback/debug endpoint.
 - `GET /api/history?limit=100` returns recent pulses, newest first. The limit is constrained to 1–1,440.
 - `GET /health` returns `200` only when the latest check succeeded within eight minutes.
@@ -22,7 +22,8 @@ The monitored petition is:
 - When idle, aggressive polling stops. The existing five-minute Cron invokes the same coordinator for a low-frequency health/history heartbeat.
 - D1 records count changes and successful five-minute heartbeats. Repeated two-second samples with an unchanged count do not create rows. Failures are coalesced to a changed error or one record per five-minute interval; the last valid count stays available.
 - WebSockets use Durable Object hibernation. The browser retains its last valid count during short reconnects, requests a resync on reconnect/visibility restoration, and never displays a fabricated count jump.
-- The Durable Object binding and SQLite class migration are declared in `wrangler.jsonc`.
+- Demo browsers use a second hibernating Durable Object with its own counter and no alarm, D1 binding, or Parliament fetch path.
+- Both Durable Object bindings and their SQLite class migrations are declared in `wrangler.jsonc`.
 
 API responses are public and use `Cache-Control: no-store`.
 
@@ -35,7 +36,7 @@ bun run db:migrate:local
 bun run dev
 ```
 
-Use `http://localhost:8787/` as the overlay. Wrangler runs the SQLite-backed Durable Object locally; add `?demo` to exercise the local-only counter controls. To exercise the five-minute idle heartbeat manually, trigger the scheduled handler at `http://localhost:8787/__scheduled`.
+Use `http://localhost:8787/` as the overlay. Wrangler runs both SQLite-backed Durable Objects locally; open multiple `?demo` tabs to see the demo counter sync between them. To exercise the five-minute idle heartbeat manually, trigger the scheduled handler at `http://localhost:8787/__scheduled`.
 
 Run tests and checks with `bun run typecheck`, `bun run test`, and `bun run check`.
 

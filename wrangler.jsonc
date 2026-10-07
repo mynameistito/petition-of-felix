@@ -27,12 +27,20 @@
         "name": "PETITION_REALTIME",
         "class_name": "PetitionRealtime",
       },
+      {
+        "name": "PETITION_DEMO_REALTIME",
+        "class_name": "PetitionDemoRealtime",
+      },
     ],
   },
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["PetitionRealtime"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["PetitionDemoRealtime"],
     },
   ],
   "previews": {

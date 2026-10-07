@@ -96,4 +96,31 @@ describe("HTTP compatibility", () => {
       expect.objectContaining({ url: "https://realtime/cron" })
     );
   });
+
+  it("routes demo browser sources to the isolated demo coordinator", async () => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(() =>
+      Promise.resolve(new Response(null, { status: 200 }))
+    );
+    const env = {
+      PETITION_DEMO_REALTIME: {
+        get: () => ({ fetch }),
+        idFromName: vi.fn<(name: string) => string>((name) => name),
+      },
+    } as unknown as Env;
+
+    const response = await worker.fetch(
+      new Request("https://petition.test/demo-ws", {
+        headers: { Upgrade: "websocket" },
+      }),
+      env
+    );
+
+    expect(response.status).toBe(200);
+    expect(env.PETITION_DEMO_REALTIME.idFromName).toHaveBeenCalledWith(
+      "felix-petition-demo"
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "https://petition.test/connect" })
+    );
+  });
 });

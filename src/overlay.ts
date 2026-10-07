@@ -121,7 +121,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       const formatter = new Intl.NumberFormat("en-NZ");
       let hasValue = false;
       const demo = new URLSearchParams(location.search).has("demo");
-      let demoCount = 0;
+      const demoQueue = [];
       if (demo) {
         overlay.dataset.demo = "true";
         status.textContent = "Demo";
@@ -139,15 +139,26 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         }
       }
 
+      if (demo) setCount(0);
+
+      function sendDemo(command) {
+        const message = JSON.stringify(command);
+        if (socket?.readyState === WebSocket.OPEN) {
+          socket.send(message);
+        } else {
+          demoQueue.push(message);
+        }
+      }
+
       document.querySelectorAll("[data-add]").forEach((button) => {
         button.addEventListener("click", () => {
-          demoCount += Number(button.dataset.add);
-          setCount(demoCount);
+          if (demo) {
+            sendDemo({ amount: Number(button.dataset.add), type: "add" });
+          }
         });
       });
       document.querySelector("#reset").addEventListener("click", () => {
-        demoCount = 0;
-        setCount(demoCount);
+        if (demo) sendDemo({ type: "reset" });
       });
 
       async function refresh() {
@@ -171,7 +182,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       function applyCount(value) {
         if (!Number.isSafeInteger(value) || value < 0) return;
         if (Number(count.dataset.value) !== value) setCount(value);
-        status.textContent = "Signed";
+        status.textContent = demo ? "Demo" : "Signed";
         overlay.dataset.state = "ready";
         hasValue = true;
       }
@@ -181,7 +192,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       let reconnectAttempts = 0;
       let stopped = false;
       function scheduleReconnect() {
-        if (stopped || reconnectTimer !== null || demo) return;
+        if (stopped || reconnectTimer !== null) return;
         const base = Math.min(30000, 500 * (2 ** Math.min(reconnectAttempts, 6)));
         const delay = Math.round(base * (0.8 + Math.random() * 0.4));
         reconnectAttempts += 1;
@@ -192,7 +203,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       }
 
       function connect() {
-        if (stopped || demo || socket !== null || !navigator.onLine) {
+        if (stopped || socket !== null || !navigator.onLine) {
           if (!navigator.onLine && !hasValue) {
             status.textContent = "Offline";
             overlay.dataset.state = "error";
@@ -200,15 +211,24 @@ export const renderOverlayHtml = (): string => `<!doctype html>
           return;
         }
         const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-        const nextSocket = new WebSocket(protocol + "//" + location.host + "/ws");
+        const endpoint = demo ? "/demo-ws" : "/ws";
+        const nextSocket = new WebSocket(protocol + "//" + location.host + endpoint);
         socket = nextSocket;
         nextSocket.addEventListener("open", () => {
           reconnectAttempts = 0;
-          nextSocket.send("resync");
+          if (demo) {
+            for (const message of demoQueue.splice(0)) nextSocket.send(message);
+          } else {
+            nextSocket.send("resync");
+          }
         });
         nextSocket.addEventListener("message", (event) => {
           let message;
           try { message = JSON.parse(event.data); } catch { return; }
+          if (demo && message.type === "demo") {
+            applyCount(message.count);
+            return;
+          }
           if (message.type !== "state") return;
           if (message.snapshot) applyCount(message.snapshot.signatureCount);
           if (message.errorCode && !hasValue) {
@@ -230,30 +250,28 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         nextSocket.addEventListener("error", () => nextSocket.close());
       }
 
-      if (!demo) {
-        void refresh();
-        connect();
-        window.addEventListener("online", connect);
-        window.addEventListener("offline", () => {
-          if (!hasValue) {
-            status.textContent = "Offline";
-            overlay.dataset.state = "error";
-          }
-        });
-        document.addEventListener("visibilitychange", () => {
-          if (!document.hidden && socket?.readyState === WebSocket.OPEN) {
-            socket.send("resync");
-          } else if (!document.hidden) {
-            connect();
-          }
-        });
-        window.addEventListener("pagehide", () => {
-          stopped = true;
-          if (reconnectTimer !== null) clearTimeout(reconnectTimer);
-          socket?.close();
-          socket = null;
-        }, { once: true });
-      }
+      if (!demo) void refresh();
+      connect();
+      window.addEventListener("online", connect);
+      window.addEventListener("offline", () => {
+        if (!hasValue) {
+          status.textContent = "Offline";
+          overlay.dataset.state = "error";
+        }
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && socket?.readyState === WebSocket.OPEN) {
+          socket.send("resync");
+        } else if (!document.hidden) {
+          connect();
+        }
+      });
+      window.addEventListener("pagehide", () => {
+        stopped = true;
+        if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+        socket?.close();
+        socket = null;
+      }, { once: true });
     </script>
   </body>
   </html>`;

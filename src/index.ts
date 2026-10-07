@@ -1,10 +1,11 @@
 import { renderOverlayHtml } from "./overlay";
 import { PETITION_ID } from "./petition";
-import { getPetitionRealtime } from "./realtime";
+import { getPetitionDemoRealtime, getPetitionRealtime } from "./realtime";
 import { getHistory, getLatestCheck, getLatestSuccess } from "./storage";
 import type { PulseRow } from "./storage";
 
 export { PetitionRealtime } from "./realtime";
+export { PetitionDemoRealtime } from "./demo-realtime";
 
 const JSON_HEADERS = {
   "access-control-allow-origin": "*",
@@ -72,6 +73,16 @@ const handleFetch = async (request: Request, env: Env): Promise<Response> => {
     }
     const realtimeUrl = new URL("/connect", request.url);
     return getPetitionRealtime(env).fetch(new Request(realtimeUrl, request));
+  }
+
+  if (url.pathname === "/demo-ws") {
+    if (request.method !== "GET") {
+      return json({ error: "method_not_allowed" }, 405);
+    }
+    const realtimeUrl = new URL("/connect", request.url);
+    return getPetitionDemoRealtime(env).fetch(
+      new Request(realtimeUrl, request)
+    );
   }
 
   if (url.pathname === "/api/current") {

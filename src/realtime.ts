@@ -11,6 +11,7 @@ import type { PulseRow } from "./storage";
 declare global {
   interface Env {
     PETITION_REALTIME: DurableObjectNamespace;
+    PETITION_DEMO_REALTIME: DurableObjectNamespace;
   }
 }
 
@@ -272,4 +273,10 @@ export class PetitionRealtime {
 export const getPetitionRealtime = (env: Env): DurableObjectStub => {
   const id = env.PETITION_REALTIME.idFromName("felix-petition");
   return env.PETITION_REALTIME.get(id);
+};
+
+/** Returns the independent demo-only singleton, separate from live petition state. */
+export const getPetitionDemoRealtime = (env: Env): DurableObjectStub => {
+  const id = env.PETITION_DEMO_REALTIME.idFromName("felix-petition-demo");
+  return env.PETITION_DEMO_REALTIME.get(id);
 };
