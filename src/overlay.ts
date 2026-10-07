@@ -136,6 +136,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
           value: Number(count.dataset.value ?? 0),
           locales: 'en-NZ',
           duration: 650,
+          stagger: 'none',
         });
         count.dataset.rollingReady = 'true';
         window.rollingCounter = counter;
