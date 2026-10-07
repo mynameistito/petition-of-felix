@@ -49,19 +49,19 @@ export const renderOverlayHtml = (): string => `<!doctype html>
           0 2px 12px rgb(0 0 0 / 0.28);
       }
       .count {
-        min-width: 0;
+        flex: 0 0 max-content;
+        min-width: max-content;
         color: #fff;
         font-size: clamp(40px, 8vw, 60px);
         font-variant-numeric: tabular-nums;
         font-weight: 900;
-        letter-spacing: -0.045em;
+        letter-spacing: -0.02em;
         line-height: 0.9;
       }
       .count .rn-value,
       .count .rn-visual,
       .count .rn-token {
         color: #fff;
-        font: inherit;
       }
       .overlay[data-state="loading"] .count { opacity: 0.55; }
       .overlay[data-state="error"] .status {
@@ -135,7 +135,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         const counter = createRollingNumber(count, {
           value: Number(count.dataset.value ?? 0),
           locales: 'en-NZ',
-          duration: 100,
+          duration: 24,
           stagger: 'none',
         });
         count.dataset.rollingReady = 'true';
