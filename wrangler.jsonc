@@ -21,6 +21,20 @@
       "migrations_dir": "migrations",
     },
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PETITION_REALTIME",
+        "class_name": "PetitionRealtime",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PetitionRealtime"],
+    },
+  ],
   "previews": {
     "d1_databases": [
       {

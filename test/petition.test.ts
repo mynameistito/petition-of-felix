@@ -96,4 +96,16 @@ describe(renderOverlayHtml, () => {
     expect(html).toContain('class="status"');
     expect(html).toContain('class="count"');
   });
+
+  it("uses a shared WebSocket and keeps demo mode local", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain(
+      'new WebSocket(protocol + "//" + location.host + "/ws")'
+    );
+    expect(html).toContain("if (!demo)");
+    expect(html).toContain(
+      "if (stopped || demo || socket !== null || !navigator.onLine)"
+    );
+  });
 });
