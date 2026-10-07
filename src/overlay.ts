@@ -75,6 +75,17 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         margin-left: 4px;
       }
       .overlay[data-demo="true"] .demo-controls { display: inline-flex; }
+      .live-count {
+        border: 1px solid rgb(255 255 255 / 0.38);
+        border-radius: 999px;
+        padding: 7px 11px 6px;
+        background: #1c3240;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .demo-controls form { display: inline-flex; align-items: center; gap: 6px; }
       .demo-controls button {
         border: 1px solid rgb(255 255 255 / 0.38);
         border-radius: 999px;
@@ -86,6 +97,17 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         font-weight: 700;
         cursor: pointer;
       }
+      .demo-controls input {
+        width: 88px;
+        border: 1px solid rgb(255 255 255 / 0.38);
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: rgb(0 0 0 / 0.65);
+        color: #fff;
+        font: inherit;
+        font-size: 13px;
+      }
+      .demo-controls input:focus-visible { outline: 2px solid #38e0ae; outline-offset: 2px; }
       .demo-controls button:focus-visible { outline: 2px solid #38e0ae; outline-offset: 2px; }
       @media (prefers-reduced-motion: reduce) {
         .rn-digit, .rn-digit * { animation-duration: 0.01ms !important; }
@@ -96,11 +118,16 @@ export const renderOverlayHtml = (): string => `<!doctype html>
     <main class="overlay" data-state="loading" aria-label="Petition signature count">
       <span class="status" id="status">Checking</span>
       <strong class="count" id="count" aria-label="--" aria-live="polite">--</strong>
-      <span class="demo-controls" aria-label="Demo controls">
-        <button type="button" data-add="1">+1</button>
-        <button type="button" data-add="10">+10</button>
+      <span class="live-count" id="live-count" hidden aria-label="Latest recorded live petition count"></span>
+      <div class="demo-controls" aria-label="Demo controls">
+        <button type="button" data-add="100">+100</button>
+        <button type="button" data-add="1000">+1000</button>
+        <form id="custom-form">
+          <input id="custom-amount" type="number" min="1" step="1" inputmode="numeric" placeholder="Custom" aria-label="Custom demo increment">
+          <button type="submit" aria-label="Add custom amount">+</button>
+        </form>
         <button type="button" id="reset">Reset</button>
-      </span>
+      </div>
     </main>
     <script>
       import('https://esm.sh/@kitlangton/rolling-number@0.4.1').then(({ createRollingNumber }) => {
@@ -127,6 +154,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         status.textContent = "Demo";
         overlay.dataset.state = "ready";
         hasValue = true;
+        void refreshLiveCount();
       }
 
       function setCount(value) {
@@ -140,6 +168,20 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       }
 
       if (demo) setCount(0);
+
+      async function refreshLiveCount() {
+        const liveCount = document.querySelector("#live-count");
+        try {
+          const response = await fetch("/api/current", { cache: "no-store" });
+          if (!response.ok) return;
+          const payload = await response.json();
+          if (!Number.isSafeInteger(payload.signatureCount) || payload.signatureCount < 0) return;
+          liveCount.textContent = "Live: " + formatter.format(payload.signatureCount);
+          liveCount.hidden = false;
+        } catch {
+          // The demo counter remains usable when the live count is unavailable.
+        }
+      }
 
       function sendDemo(command) {
         const message = JSON.stringify(command);
@@ -156,6 +198,18 @@ export const renderOverlayHtml = (): string => `<!doctype html>
             sendDemo({ amount: Number(button.dataset.add), type: "add" });
           }
         });
+      });
+      document.querySelector("#custom-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!demo) return;
+        const input = document.querySelector("#custom-amount");
+        const amount = Number(input.value);
+        if (!Number.isSafeInteger(amount) || amount < 1) {
+          input.reportValidity();
+          return;
+        }
+        sendDemo({ amount, type: "add" });
+        input.value = "";
       });
       document.querySelector("#reset").addEventListener("click", () => {
         if (demo) sendDemo({ type: "reset" });
