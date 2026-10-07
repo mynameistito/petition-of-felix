@@ -127,4 +127,11 @@ describe(renderOverlayHtml, () => {
     expect(html).toContain("const step = current < value ? 1 : -1");
     expect(html).toContain("countFrame = requestAnimationFrame(advance)");
   });
+
+  it("uses the first demo snapshot as its initial count", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).not.toContain("setCount(0)");
+    expect(html).toContain("if (hasValue) {");
+  });
 });
