@@ -77,10 +77,20 @@ export class PetitionDemoRealtime {
     if (command["type"] === "reset") {
       return { type: "reset" };
     }
-    return command["type"] === "add" &&
-      (command["amount"] === 1 || command["amount"] === 10)
-      ? { amount: command["amount"], type: "add" }
-      : null;
+    if (command["type"] !== "add") {
+      return null;
+    }
+    const { amount } = command;
+    if (typeof amount !== "number") {
+      return null;
+    }
+    if (!Number.isSafeInteger(amount)) {
+      return null;
+    }
+    if (amount < 1) {
+      return null;
+    }
+    return { amount, type: "add" };
   }
 
   private static message(count: number): DemoMessage {
