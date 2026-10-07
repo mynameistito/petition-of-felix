@@ -154,7 +154,6 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         overlay.dataset.demo = "true";
         status.textContent = "Demo";
         overlay.dataset.state = "ready";
-        hasValue = true;
         void refreshLiveCount();
       }
 
@@ -199,8 +198,6 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         }
         countFrame = requestAnimationFrame(advance);
       }
-
-      if (demo) setCount(0);
 
       async function refreshLiveCount() {
         const liveCount = document.querySelector("#live-count");
