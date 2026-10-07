@@ -135,4 +135,11 @@ describe(renderOverlayHtml, () => {
     expect(html).not.toContain("setCount(0)");
     expect(html).toContain("if (hasValue) {");
   });
+
+  it("reserves count width and settles each rolling step before the next", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain("flex: 0 0 max-content");
+    expect(html).toContain("duration: 24");
+  });
 });
