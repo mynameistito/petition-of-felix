@@ -151,7 +151,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       });
 
       async function refresh() {
-        if (demo) return;
+        if (demo || hasValue) return;
         try {
           const response = await fetch("/api/current", { cache: "no-store" });
           if (!response.ok) throw new Error("count unavailable");
@@ -159,18 +159,101 @@ export const renderOverlayHtml = (): string => `<!doctype html>
           if (!Number.isSafeInteger(payload.signatureCount) || payload.signatureCount < 0) {
             throw new Error("invalid count");
           }
-          setCount(payload.signatureCount);
-          status.textContent = "Signed";
-          overlay.dataset.state = "ready";
-          hasValue = true;
+          if (!hasValue) applyCount(payload.signatureCount);
         } catch {
-          status.textContent = hasValue ? "Stale" : "Offline";
-          overlay.dataset.state = "error";
+          if (!hasValue) {
+            status.textContent = "Offline";
+            overlay.dataset.state = "error";
+          }
         }
       }
 
-      void refresh();
-      setInterval(() => void refresh(), 15000);
+      function applyCount(value) {
+        if (!Number.isSafeInteger(value) || value < 0) return;
+        if (Number(count.dataset.value) !== value) setCount(value);
+        status.textContent = "Signed";
+        overlay.dataset.state = "ready";
+        hasValue = true;
+      }
+
+      let socket = null;
+      let reconnectTimer = null;
+      let reconnectAttempts = 0;
+      let stopped = false;
+      function scheduleReconnect() {
+        if (stopped || reconnectTimer !== null || demo) return;
+        const base = Math.min(30000, 500 * (2 ** Math.min(reconnectAttempts, 6)));
+        const delay = Math.round(base * (0.8 + Math.random() * 0.4));
+        reconnectAttempts += 1;
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          connect();
+        }, delay);
+      }
+
+      function connect() {
+        if (stopped || demo || socket !== null || !navigator.onLine) {
+          if (!navigator.onLine && !hasValue) {
+            status.textContent = "Offline";
+            overlay.dataset.state = "error";
+          }
+          return;
+        }
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        const nextSocket = new WebSocket(protocol + "//" + location.host + "/ws");
+        socket = nextSocket;
+        nextSocket.addEventListener("open", () => {
+          reconnectAttempts = 0;
+          nextSocket.send("resync");
+        });
+        nextSocket.addEventListener("message", (event) => {
+          let message;
+          try { message = JSON.parse(event.data); } catch { return; }
+          if (message.type !== "state") return;
+          if (message.snapshot) applyCount(message.snapshot.signatureCount);
+          if (message.errorCode && !hasValue) {
+            status.textContent = "Offline";
+            overlay.dataset.state = "error";
+          } else if (message.errorCode && hasValue) {
+            status.textContent = "Stale";
+            overlay.dataset.state = "error";
+          }
+        });
+        nextSocket.addEventListener("close", () => {
+          if (socket === nextSocket) socket = null;
+          if (!hasValue) {
+            status.textContent = "Offline";
+            overlay.dataset.state = "error";
+          }
+          scheduleReconnect();
+        });
+        nextSocket.addEventListener("error", () => nextSocket.close());
+      }
+
+      if (!demo) {
+        void refresh();
+        connect();
+        window.addEventListener("online", connect);
+        window.addEventListener("offline", () => {
+          if (!hasValue) {
+            status.textContent = "Offline";
+            overlay.dataset.state = "error";
+          }
+        });
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden && socket?.readyState === WebSocket.OPEN) {
+            socket.send("resync");
+          } else if (!document.hidden) {
+            connect();
+          }
+        });
+        window.addEventListener("pagehide", () => {
+          stopped = true;
+          if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+          socket?.close();
+          socket = null;
+        }, { once: true });
+      }
     </script>
   </body>
   </html>`;

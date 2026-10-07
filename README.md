@@ -1,6 +1,6 @@
-# Petition of Felix pulse checker
+# Petition of Felix live overlay
 
-A Cloudflare Worker that reads the public New Zealand Parliament petition API once per minute and stores every successful or failed pulse in D1.
+A Cloudflare Worker that reads the public New Zealand Parliament petition API and serves a transparent OBS/browser-source overlay. One SQLite-backed Durable Object coordinates all live clients for this petition.
 
 The monitored petition is:
 
@@ -8,13 +8,23 @@ The monitored petition is:
 
 ## API
 
-- `GET /` renders a transparent, browser-source-ready signature overlay. It refreshes from the Worker API every 15 seconds while the source pulse remains once per minute.
+- `GET /` renders a transparent, browser-source-ready signature overlay. It receives live updates over a WebSocket and reconnects with bounded exponential backoff.
+- `GET /ws` upgrades to the petition's shared WebSocket coordinator. A new connection receives the latest persisted count immediately, then receives only changed authoritative counts.
 - Add `?demo` to the overlay URL to try the rolling counter with `+1`, `+10`, and `Reset` controls. Demo changes are local to that browser and do not affect petition data.
-- `GET /api/current` returns the newest successful count and the outcome of the most recent pulse.
+- `GET /api/current` returns the newest successful count and the outcome of the most recent persisted check. It remains available as an HTTP fallback/debug endpoint.
 - `GET /api/history?limit=100` returns recent pulses, newest first. The limit is constrained to 1–1,440.
-- `GET /health` returns `200` only when the latest pulse succeeded within the last three minutes.
+- `GET /health` returns `200` only when the latest check succeeded within eight minutes.
 
-All responses are public JSON with `Cache-Control: no-store`.
+## Realtime and persistence
+
+- All `/ws` connections route to one stable Durable Object named `felix-petition`; connected browsers never poll Parliament themselves.
+- While at least one WebSocket is connected, the Durable Object uses alarms to poll the Parliament JSON API every two seconds. It does not start one loop per viewer, avoids overlapping local polls, and cancels its alarm after the last client disconnects.
+- When idle, aggressive polling stops. The existing five-minute Cron invokes the same coordinator for a low-frequency health/history heartbeat.
+- D1 records count changes and successful five-minute heartbeats. Repeated two-second samples with an unchanged count do not create rows. Failures are coalesced to a changed error or one record per five-minute interval; the last valid count stays available.
+- WebSockets use Durable Object hibernation. The browser retains its last valid count during short reconnects, requests a resync on reconnect/visibility restoration, and never displays a fabricated count jump.
+- The Durable Object binding and SQLite class migration are declared in `wrangler.jsonc`.
+
+API responses are public and use `Cache-Control: no-store`.
 
 ## Local development
 
@@ -25,11 +35,13 @@ bun run db:migrate:local
 bun run dev
 ```
 
-With the development server running, trigger the scheduled handler at `http://localhost:8787/__scheduled`.
+Use `http://localhost:8787/` as the overlay. Wrangler runs the SQLite-backed Durable Object locally; add `?demo` to exercise the local-only counter controls. To exercise the five-minute idle heartbeat manually, trigger the scheduled handler at `http://localhost:8787/__scheduled`.
+
+Run tests and checks with `bun run typecheck`, `bun run test`, and `bun run check`.
 
 ## Deployment
 
-The D1 database is configured in `wrangler.jsonc` in Cloudflare's Oceania region. Apply migrations before deploying:
+The D1 database and Durable Object are configured in `wrangler.jsonc`. Apply D1 migrations and deploy:
 
 ```powershell
 bun run db:migrate:remote
