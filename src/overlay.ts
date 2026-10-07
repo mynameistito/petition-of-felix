@@ -135,7 +135,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         const counter = createRollingNumber(count, {
           value: Number(count.dataset.value ?? 0),
           locales: 'en-NZ',
-          duration: 24,
+          duration: 50,
           stagger: 'none',
         });
         count.dataset.rollingReady = 'true';
@@ -147,7 +147,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       const status = document.querySelector("#status");
       const count = document.querySelector("#count");
       const formatter = new Intl.NumberFormat("en-NZ");
-      const countStepIntervalMs = 1000 / 30;
+      const countStepIntervalMs = 1000 / 15;
       let hasValue = false;
       const demo = new URLSearchParams(location.search).has("demo");
       const demoQueue = [];
