@@ -110,4 +110,13 @@ describe(renderOverlayHtml, () => {
       "if (stopped || socket !== null || !navigator.onLine)"
     );
   });
+
+  it("renders larger demo increments and a live-count reference", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain('data-add="100">+100</button>');
+    expect(html).toContain('data-add="1000">+1000</button>');
+    expect(html).toContain('id="custom-amount" type="number"');
+    expect(html).toContain('id="live-count"');
+  });
 });
