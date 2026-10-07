@@ -10,7 +10,7 @@ The monitored petition is:
 
 - `GET /` renders a transparent, browser-source-ready signature overlay. It receives live updates over a WebSocket and reconnects with bounded exponential backoff.
 - `GET /ws` upgrades to the petition's shared WebSocket coordinator. A new connection receives the latest persisted count immediately, then receives only changed authoritative counts.
-- Add `?demo` to the overlay URL to try the rolling counter with `+1`, `+10`, and `Reset` controls. Demo actions sync across browsers using a separate demo-only Durable Object and never touch the petition count, Parliament API, or D1.
+- Add `?demo` to the overlay URL to try the rolling counter with `+100`, `+1000`, a custom positive whole-number increment, and `Reset`. The demo also shows the latest recorded live petition count as a read-only reference. Demo actions sync across browsers using a separate demo-only Durable Object and never change petition state or D1 data.
 - `GET /api/current` returns the newest successful count and the outcome of the most recent persisted check. It remains available as an HTTP fallback/debug endpoint.
 - `GET /api/history?limit=100` returns recent pulses, newest first. The limit is constrained to 1–1,440.
 - `GET /health` returns `200` only when the latest check succeeded within eight minutes.
