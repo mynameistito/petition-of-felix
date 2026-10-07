@@ -95,6 +95,7 @@ describe(renderOverlayHtml, () => {
     expect(html).toContain('fetch("/api/current"');
     expect(html).toContain('class="status"');
     expect(html).toContain('class="count"');
+    expect(html).toContain("stagger: 'none'");
   });
 
   it("uses separate shared sockets for live and demo counters", () => {
