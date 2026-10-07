@@ -147,6 +147,7 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       const status = document.querySelector("#status");
       const count = document.querySelector("#count");
       const formatter = new Intl.NumberFormat("en-NZ");
+      const countStepIntervalMs = 1000 / 30;
       let hasValue = false;
       const demo = new URLSearchParams(location.search).has("demo");
       const demoQueue = [];
@@ -186,13 +187,17 @@ export const renderOverlayHtml = (): string => `<!doctype html>
 
         animationTarget = value;
         const step = current < value ? 1 : -1;
-        function advance() {
-          const next = Number(count.dataset.value) + step;
-          setCount(next);
-          if (next === value) {
-            countFrame = null;
-            animationTarget = null;
-            return;
+        let nextStepAt = 0;
+        function advance(timestamp) {
+          if (timestamp >= nextStepAt) {
+            const next = Number(count.dataset.value) + step;
+            setCount(next);
+            if (next === value) {
+              countFrame = null;
+              animationTarget = null;
+              return;
+            }
+            nextStepAt = timestamp + countStepIntervalMs;
           }
           countFrame = requestAnimationFrame(advance);
         }
