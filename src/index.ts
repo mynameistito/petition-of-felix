@@ -1,13 +1,10 @@
 import { renderOverlayHtml } from "./overlay";
-import { fetchPetitionSnapshot, PETITION_ID } from "./petition";
-import {
-  getHistory,
-  getLatestCheck,
-  getLatestSuccess,
-  recordFailure,
-  recordSuccess,
-} from "./storage";
+import { PETITION_ID } from "./petition";
+import { getPetitionRealtime } from "./realtime";
+import { getHistory, getLatestCheck, getLatestSuccess } from "./storage";
 import type { PulseRow } from "./storage";
+
+export { PetitionRealtime } from "./realtime";
 
 const JSON_HEADERS = {
   "access-control-allow-origin": "*",
@@ -69,6 +66,14 @@ const handleFetch = async (request: Request, env: Env): Promise<Response> => {
     });
   }
 
+  if (url.pathname === "/ws") {
+    if (request.method !== "GET") {
+      return json({ error: "method_not_allowed" }, 405);
+    }
+    const realtimeUrl = new URL("/connect", request.url);
+    return getPetitionRealtime(env).fetch(new Request(realtimeUrl, request));
+  }
+
   if (url.pathname === "/api/current") {
     const [latestSuccess, latestCheck] = await Promise.all([
       getLatestSuccess(env.DB),
@@ -115,34 +120,13 @@ const handleFetch = async (request: Request, env: Env): Promise<Response> => {
   return json({ error: "not_found" }, 404);
 };
 
-/** Cloudflare Worker entry point for the public API and minute cron pulse. */
+/** Cloudflare Worker entry point for the public API and low-frequency pulse. */
 export default {
   fetch(request, env): Promise<Response> {
     return handleFetch(request, env);
   },
 
-  async scheduled(controller, env): Promise<void> {
-    const checkedAt = controller.scheduledTime;
-    const result = await fetchPetitionSnapshot();
-    if (!result.ok) {
-      await recordFailure(env.DB, checkedAt, result.errorCode);
-      console.error(
-        JSON.stringify({
-          checkedAt,
-          errorCode: result.errorCode,
-          event: "petition_pulse_failed",
-        })
-      );
-      return;
-    }
-
-    await recordSuccess(env.DB, checkedAt, result.snapshot);
-    console.log(
-      JSON.stringify({
-        checkedAt,
-        event: "petition_pulse_succeeded",
-        signatureCount: result.snapshot.signatureCount,
-      })
-    );
+  async scheduled(_controller, env): Promise<void> {
+    await getPetitionRealtime(env).fetch(new Request("https://realtime/cron"));
   },
 } satisfies ExportedHandler<Env>;
