@@ -1,5 +1,6 @@
 /* eslint-disable max-classes-per-file -- focused fake Worker runtime */
 /* eslint-disable promise/prefer-await-to-callbacks -- mirrors storage.transaction API */
+/* eslint-disable no-await-in-loop -- the test asserts ordered counter increments */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PetitionDemoRealtime } from "../src/demo-realtime";
@@ -133,7 +134,7 @@ describe("shared demo Durable Object", () => {
     expect(messageCount(state.sockets[1] as FakeSocket, 0)).toBe(0);
   });
 
-  it("rejects commands other than +1, +10, or reset", async () => {
+  it("accepts preset and custom positive whole-number increments", async () => {
     const state = new FakeState();
     const object = new PetitionDemoRealtime(
       state as unknown as DurableObjectState
@@ -141,9 +142,31 @@ describe("shared demo Durable Object", () => {
     await connect(object);
     const socket = state.sockets[0] as FakeSocket;
 
-    await object.webSocketMessage(
-      socket as unknown as WebSocket,
-      JSON.stringify({ amount: 100, type: "add" })
+    for (const amount of [100, 1000, 37]) {
+      await object.webSocketMessage(
+        socket as unknown as WebSocket,
+        JSON.stringify({ amount, type: "add" })
+      );
+    }
+
+    expect(messageCount(socket, 3)).toBe(1137);
+  });
+
+  it("rejects non-positive, fractional, and unsafe demo increments", async () => {
+    const state = new FakeState();
+    const object = new PetitionDemoRealtime(
+      state as unknown as DurableObjectState
+    );
+    await connect(object);
+    const socket = state.sockets[0] as FakeSocket;
+
+    await Promise.all(
+      [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1].map((amount) =>
+        object.webSocketMessage(
+          socket as unknown as WebSocket,
+          JSON.stringify({ amount, type: "add" })
+        )
+      )
     );
 
     expect(socket.close).toHaveBeenCalledWith(1003, "Invalid demo command");
