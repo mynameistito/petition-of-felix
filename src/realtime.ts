@@ -8,6 +8,12 @@ import {
 } from "./storage";
 import type { PulseRow } from "./storage";
 
+declare global {
+  interface Env {
+    PETITION_REALTIME: DurableObjectNamespace;
+  }
+}
+
 const POLL_INTERVAL_MS = 2000;
 const PERSIST_INTERVAL_MS = 5 * 60_000;
 
