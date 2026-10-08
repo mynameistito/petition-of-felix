@@ -2,73 +2,125 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import worker from "../src/index";
 import { PETITION_ID } from "../src/petition";
+import type { PulseRow } from "../src/storage";
 
-const validPayload = {
-  id: PETITION_ID,
-  isClosed: false,
-  signatureClosingDate: "2027-01-15T00:00:00+13:00",
-  signatureCount: 12_357,
-  status: { statusName: "Open" },
-};
-
-type RecordedRun = Readonly<{ args: readonly unknown[]; sql: string }>;
-
-const fakeDatabase = (): { DB: D1Database; runs: RecordedRun[] } => {
-  const runs: RecordedRun[] = [];
+const makeDatabase = (rows: PulseRow[]) => {
   const DB = {
     prepare: (sql: string) => ({
-      bind: (...args: unknown[]) => ({
-        run: () => {
-          runs.push({ args, sql });
-          return Promise.resolve({ success: true });
-        },
+      bind: (..._args: unknown[]) => ({
+        all: () => Promise.resolve({ results: rows }),
+        run: () => Promise.resolve({ success: true }),
       }),
+      first: () => {
+        if (sql.includes("WHERE outcome = 'ok'")) {
+          return Promise.resolve(
+            rows.find((row) => row.outcome === "ok") ?? null
+          );
+        }
+        return Promise.resolve(rows[0] ?? null);
+      },
     }),
   } as unknown as D1Database;
-  return { DB, runs };
+  return DB;
 };
 
-const invokeScheduled = (DB: D1Database, scheduledTime: number) =>
-  worker.scheduled(
-    { scheduledTime } as ScheduledController,
-    { DB } as unknown as Env
-  );
+const successfulRow: PulseRow = {
+  checked_at: 1_800_000_000_000,
+  closing_at: "2027-01-15T00:00:00+13:00",
+  error_code: null,
+  is_closed: 0,
+  outcome: "ok",
+  petition_status: "Open",
+  signature_count: 12_357,
+};
 
-describe("scheduled pulse", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
+describe("HTTP compatibility", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("preserves /api/current", async () => {
+    const DB = makeDatabase([successfulRow]);
+    const env = { DB } as Env;
+
+    const current = await worker.fetch(
+      new Request("https://petition.test/api/current"),
+      env
+    );
+    expect(current.status).toBe(200);
+    await expect(current.json()).resolves.toMatchObject({
+      petitionId: PETITION_ID,
+      signatureCount: 12_357,
+    });
   });
 
-  it("records a failed pulse and resolves when upstream returns an HTTP error", async () => {
-    const checkedAt = 1_789_650_885_000;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn<typeof fetch>(() =>
-        Promise.resolve(new Response(null, { status: 503 }))
-      )
+  it("preserves /api/history", async () => {
+    const DB = makeDatabase([successfulRow]);
+    const env = { DB } as Env;
+    const history = await worker.fetch(
+      new Request("https://petition.test/api/history?limit=1"),
+      env
     );
-    const { DB, runs } = fakeDatabase();
-
-    await expect(invokeScheduled(DB, checkedAt)).resolves.toBeUndefined();
-
-    expect(runs).toHaveLength(1);
-    expect(runs[0]?.sql).toContain("INSERT INTO pulse_checks");
-    expect(runs[0]?.args).toStrictEqual([checkedAt, "upstream_http_error"]);
+    expect(history.status).toBe(200);
+    await expect(history.json()).resolves.toMatchObject({
+      pulses: [{ signatureCount: 12_357 }],
+    });
   });
 
-  it("records a successful pulse when upstream responds", async () => {
-    const checkedAt = 1_789_650_885_000;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn<typeof fetch>(() => Promise.resolve(Response.json(validPayload)))
+  it("preserves /health", async () => {
+    const DB = makeDatabase([successfulRow]);
+    const env = { DB } as Env;
+    const health = await worker.fetch(
+      new Request("https://petition.test/health"),
+      env
     );
-    const { DB, runs } = fakeDatabase();
+    expect(health.status).toBe(200);
+    await expect(health.json()).resolves.toMatchObject({ healthy: true });
+  });
 
-    await expect(invokeScheduled(DB, checkedAt)).resolves.toBeUndefined();
+  it("routes the five-minute cron to the same stable coordinator", async () => {
+    const fetch = vi.fn<() => Promise<Response>>(() =>
+      Promise.resolve(new Response(null, { status: 200 }))
+    );
+    const env = {
+      PETITION_REALTIME: {
+        get: () => ({ fetch }),
+        idFromName: vi.fn<(name: string) => string>((name) => name),
+      },
+    } as unknown as Env;
 
-    expect(runs).toHaveLength(1);
-    expect(runs[0]?.sql).toContain("INSERT INTO pulse_checks");
-    expect(runs[0]?.args?.[0]).toBe(checkedAt);
-    expect(runs[0]?.args?.[1]).toBe(12_357);
+    await worker.scheduled({ scheduledTime: 1 } as ScheduledController, env);
+
+    expect(env.PETITION_REALTIME.idFromName).toHaveBeenCalledWith(
+      "felix-petition"
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "https://realtime/cron" })
+    );
+  });
+
+  it("routes demo browser sources to the isolated demo coordinator", async () => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(() =>
+      Promise.resolve(new Response(null, { status: 200 }))
+    );
+    const env = {
+      PETITION_DEMO_REALTIME: {
+        get: () => ({ fetch }),
+        idFromName: vi.fn<(name: string) => string>((name) => name),
+      },
+    } as unknown as Env;
+
+    const response = await worker.fetch(
+      new Request("https://petition.test/demo-ws", {
+        headers: { Upgrade: "websocket" },
+      }),
+      env
+    );
+
+    expect(response.status).toBe(200);
+    expect(env.PETITION_DEMO_REALTIME.idFromName).toHaveBeenCalledWith(
+      "felix-petition-demo"
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "https://petition.test/connect" })
+    );
   });
 });

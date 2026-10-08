@@ -92,8 +92,59 @@ describe(renderOverlayHtml, () => {
     const html = renderOverlayHtml();
 
     expect(html).toContain("background: transparent");
+    expect(html).toContain(
+      ".count .rn-slot {\n        -webkit-mask-image: none;\n        mask-image: none;"
+    );
     expect(html).toContain('fetch("/api/current"');
     expect(html).toContain('class="status"');
     expect(html).toContain('class="count"');
+  });
+
+  it("uses separate shared sockets for live and demo counters", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain('const endpoint = demo ? "/demo-ws" : "/ws"');
+    expect(html).toContain(
+      'sendDemo({ amount: Number(button.dataset.add), type: "add" })'
+    );
+    expect(html).toContain('sendDemo({ type: "reset" })');
+    expect(html).toContain("if (!demo)");
+    expect(html).toContain(
+      "if (stopped || socket !== null || !navigator.onLine)"
+    );
+  });
+
+  it("renders larger demo increments and a live-count reference", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain('data-add="100">+100</button>');
+    expect(html).toContain('data-add="1000">+1000</button>');
+    expect(html).toContain('id="custom-amount" type="number"');
+    expect(html).toContain('id="live-count"');
+  });
+
+  it("counts through each intermediate value for multi-count updates", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain("stagger: 'none'");
+    expect(html).toContain("const countStepIntervalMs = 1000 / 15");
+    expect(html).toMatch(
+      /const maxSteps = 30;[\s\S]*Math.ceil\(Math.abs\(value - current\) \/ maxSteps\)[\s\S]*Math.min\(raw, value\) : Math.max\(raw, value\)/u
+    );
+    expect(html).toContain("countFrame = requestAnimationFrame(advance)");
+  });
+
+  it("uses the first demo snapshot as its initial count", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).not.toContain("setCount(0)");
+    expect(html).toContain("if (hasValue) {");
+  });
+
+  it("reserves count width and settles each rolling step before the next", () => {
+    const html = renderOverlayHtml();
+
+    expect(html).toContain("flex: 0 0 max-content");
+    expect(html).toContain("duration: 50");
   });
 });
