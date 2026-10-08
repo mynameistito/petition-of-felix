@@ -134,14 +134,14 @@ export class PetitionRealtime {
 
   async webSocketClose(socket: WebSocket): Promise<void> {
     socket.close();
-    if (this.ctx.getWebSockets().length === 0) {
+    if (!this.ctx.getWebSockets().some((client) => client !== socket)) {
       await this.ctx.storage.deleteAlarm();
     }
   }
 
   async webSocketError(socket: WebSocket): Promise<void> {
     socket.close(1011, "WebSocket error");
-    if (this.ctx.getWebSockets().length === 0) {
+    if (!this.ctx.getWebSockets().some((client) => client !== socket)) {
       await this.ctx.storage.deleteAlarm();
     }
   }
