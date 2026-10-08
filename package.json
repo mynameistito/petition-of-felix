@@ -16,16 +16,16 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint-plugin-github": "^6.1.2",
-    "eslint-plugin-sonarjs": "^4.2.1",
-    "lefthook": "^2.1.14",
-    "oxfmt": "^0.70.0",
-    "oxlint": "^1.85.0",
+    "eslint-plugin-sonarjs": "^4.2.2",
+    "lefthook": "^2.2.1",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "ultracite": "^7.12.0",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.136.3"
+    "ultracite": "^7.12.4",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.148.0"
   }
 }

@@ -63,6 +63,10 @@ export const renderOverlayHtml = (): string => `<!doctype html>
       .count .rn-token {
         color: #fff;
       }
+      .count .rn-slot {
+        -webkit-mask-image: none;
+        mask-image: none;
+      }
       .overlay[data-state="loading"] .count { opacity: 0.55; }
       .overlay[data-state="error"] .status {
         background: #ff6b5e;

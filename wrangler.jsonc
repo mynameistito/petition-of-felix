@@ -3,7 +3,7 @@
   "name": "petition-of-felix",
   "main": "src/index.ts",
   "account_id": "402722ab1f598e783cd6dcdedc37e1d0",
-  "compatibility_date": "2026-07-14",
+  "compatibility_date": "2026-09-28",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "observability": {

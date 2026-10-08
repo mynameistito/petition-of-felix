@@ -92,6 +92,9 @@ describe(renderOverlayHtml, () => {
     const html = renderOverlayHtml();
 
     expect(html).toContain("background: transparent");
+    expect(html).toContain(
+      ".count .rn-slot {\n        -webkit-mask-image: none;\n        mask-image: none;"
+    );
     expect(html).toContain('fetch("/api/current"');
     expect(html).toContain('class="status"');
     expect(html).toContain('class="count"');
