@@ -186,11 +186,14 @@ export const renderOverlayHtml = (): string => `<!doctype html>
         }
 
         animationTarget = value;
-        const step = current < value ? 1 : -1;
+        const direction = current < value ? 1 : -1;
+        const maxSteps = 30;
+        const step = direction * Math.max(1, Math.ceil(Math.abs(value - current) / maxSteps));
         let nextStepAt = 0;
         function advance(timestamp) {
           if (timestamp >= nextStepAt) {
-            const next = Number(count.dataset.value) + step;
+            const raw = Number(count.dataset.value) + step;
+            const next = direction > 0 ? Math.min(raw, value) : Math.max(raw, value);
             setCount(next);
             if (next === value) {
               countFrame = null;

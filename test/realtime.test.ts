@@ -271,6 +271,36 @@ describe("petition Durable Object", () => {
     });
   });
 
+  it("reschedules polling when persistence fails during an alarm", async () => {
+    const { object, state, DB } = makeRuntime();
+    await connect(object);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<() => Promise<Response>>(() =>
+        Promise.resolve(new Response(null, { status: 503 }))
+      )
+    );
+    vi.spyOn(DB, "prepare").mockImplementation(() => {
+      throw new Error("D1 unavailable");
+    });
+
+    await expect(object.alarm()).rejects.toThrow("D1 unavailable");
+
+    expect(state.alarms.at(-1)).toBeGreaterThan(Date.now());
+  });
+
+  it("re-arms a missing alarm from cron while clients remain connected", async () => {
+    const { object, state } = makeRuntime();
+    await connect(object);
+    state.alarms.length = 0;
+
+    const response = await object.fetch(new Request("https://realtime/cron"));
+
+    expect(response.status).toBe(200);
+    expect(state.alarms).toHaveLength(1);
+    expect(state.alarms[0]).toBeLessThanOrEqual(Date.now());
+  });
+
   it("recovers state for a reconnect and stops alarms after the last disconnect", async () => {
     const { DB, object, state } = makeRuntime();
     await connect(object);

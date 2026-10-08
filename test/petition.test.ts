@@ -125,7 +125,9 @@ describe(renderOverlayHtml, () => {
 
     expect(html).toContain("stagger: 'none'");
     expect(html).toContain("const countStepIntervalMs = 1000 / 15");
-    expect(html).toContain("const step = current < value ? 1 : -1");
+    expect(html).toMatch(
+      /const maxSteps = 30;[\s\S]*Math.ceil\(Math.abs\(value - current\) \/ maxSteps\)[\s\S]*Math.min\(raw, value\) : Math.max\(raw, value\)/u
+    );
     expect(html).toContain("countFrame = requestAnimationFrame(advance)");
   });
 

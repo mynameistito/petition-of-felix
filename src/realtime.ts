@@ -95,6 +95,8 @@ export class PetitionRealtime {
       const clients = this.ctx.getWebSockets().length;
       if (clients === 0) {
         await this.poll();
+      } else if ((await this.ctx.storage.getAlarm()) === null) {
+        await this.ctx.storage.setAlarm(Date.now());
       }
       return responseJson({ clients, ok: true });
     }
@@ -106,9 +108,12 @@ export class PetitionRealtime {
     if (this.ctx.getWebSockets().length === 0) {
       return;
     }
-    await this.poll();
-    if (this.ctx.getWebSockets().length > 0) {
-      await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
+    try {
+      await this.poll();
+    } finally {
+      if (this.ctx.getWebSockets().length > 0) {
+        await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
+      }
     }
   }
 
