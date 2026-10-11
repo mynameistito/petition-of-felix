@@ -60,3 +60,7 @@ bun run deploy
 ```
 
 Cron schedule changes can take several minutes to propagate across Cloudflare.
+
+## License
+
+This project is open source under the [MIT License](LICENSE).
