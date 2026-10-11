@@ -1,33 +1,16 @@
 # Petition of Felix live overlay
 
-A Cloudflare Worker that reads the public New Zealand Parliament petition API and serves a transparent OBS/browser-source overlay. One SQLite-backed Durable Object coordinates all live clients for this petition.
+A transparent, live-updating signature counter for the New Zealand Parliament petition **[Petition of Felix](https://petitions.parliament.nz/1f10c734-0815-4699-b710-08dec0efef41?lang=en)**. It runs on Cloudflare Workers and is designed to be added to OBS as a browser source.
 
-The monitored petition is:
+## Use the overlay
 
-<https://petitions.parliament.nz/1f10c734-0815-4699-b710-08dec0efef41?lang=en>
+Open the deployed Worker URL in a browser, or add it to OBS as a **Browser Source**. The page has a transparent background and displays the latest signature count. Live updates are sent over a WebSocket; the browser reconnects automatically if its connection is interrupted.
 
-## API
+To preview the counter without changing petition data, append `?demo` to the Worker URL. Demo controls let you add 100, add 1,000, choose a custom positive whole-number increment, or reset the demo counter. Demo changes sync between browsers and are kept separate from the petition count.
 
-- `GET /` renders a transparent, browser-source-ready signature overlay. It receives live updates over a WebSocket and reconnects with bounded exponential backoff.
-- `GET /ws` upgrades to the petition's shared WebSocket coordinator. A new connection receives the latest persisted count immediately, then receives only changed authoritative counts.
-- Add `?demo` to the overlay URL to try the rolling counter with `+100`, `+1000`, a custom positive whole-number increment, and `Reset`. The demo also shows the latest recorded live petition count as a read-only reference. Demo actions sync across browsers using a separate demo-only Durable Object and never change petition state or D1 data.
-- `GET /api/current` returns the newest successful count and the outcome of the most recent persisted check. It remains available as an HTTP fallback/debug endpoint.
-- `GET /api/history?limit=100` returns recent pulses, newest first. The limit is constrained to 1–1,440.
-- `GET /health` returns `200` only when the latest check succeeded within eight minutes.
+## Run locally
 
-## Realtime and persistence
-
-- All `/ws` connections route to one stable Durable Object named `felix-petition`; connected browsers never poll Parliament themselves.
-- While at least one WebSocket is connected, the Durable Object uses alarms to poll the Parliament JSON API every two seconds. It does not start one loop per viewer, avoids overlapping local polls, and cancels its alarm after the last client disconnects.
-- When idle, aggressive polling stops. The existing five-minute Cron invokes the same coordinator for a low-frequency health/history heartbeat.
-- D1 records count changes and successful five-minute heartbeats. Repeated two-second samples with an unchanged count do not create rows. Failures are coalesced to a changed error or one record per five-minute interval; the last valid count stays available.
-- WebSockets use Durable Object hibernation. The browser retains its last valid count during short reconnects, requests a resync on reconnect/visibility restoration, and never displays a fabricated count jump.
-- Demo browsers use a second hibernating Durable Object with its own counter and no alarm, D1 binding, or Parliament fetch path.
-- Both Durable Object bindings and their SQLite class migrations are declared in `wrangler.jsonc`.
-
-API responses are public and use `Cache-Control: no-store`.
-
-## Local development
+Prerequisites: [Bun](https://bun.sh/) and a Cloudflare account for deployment.
 
 ```powershell
 bun install
@@ -36,17 +19,44 @@ bun run db:migrate:local
 bun run dev
 ```
 
-Use `http://localhost:8787/` as the overlay. Wrangler runs both SQLite-backed Durable Objects locally; open multiple `?demo` tabs to see the demo counter sync between them. To exercise the five-minute idle heartbeat manually, trigger the scheduled handler at `http://localhost:8787/__scheduled`.
+Open <http://localhost:8787/> to view the overlay. Open <http://localhost:8787/?demo> in multiple tabs to try the synchronized demo. Wrangler runs the Worker and its SQLite-backed Durable Objects locally. To trigger the scheduled five-minute heartbeat manually, visit <http://localhost:8787/__scheduled>.
 
-Run tests and checks with `bun run typecheck`, `bun run test`, and `bun run check`.
+Run the project checks:
 
-## Deployment
+```powershell
+bun run typecheck
+bun run test
+bun run check
+```
 
-The D1 database and Durable Object are configured in `wrangler.jsonc`. Apply D1 migrations and deploy:
+## HTTP endpoints
+
+| Path | Description |
+| --- | --- |
+| `GET /` | Transparent signature-count overlay. Add `?demo` for the isolated demo counter. |
+| `GET /ws` | WebSocket for live petition updates. |
+| `GET /demo-ws` | WebSocket used by the demo counter. |
+| `GET /api/current` | Latest successful count and most recent check result. |
+| `GET /api/history?limit=100` | Recent recorded checks, newest first. `limit` must be from 1 to 1,440. |
+| `GET /health` | Returns `200` when the latest check succeeded within eight minutes; otherwise `503`. |
+
+API responses are public and sent with `Cache-Control: no-store`.
+
+## How it works
+
+- One SQLite-backed Durable Object coordinates live petition updates for all connected browsers. Browsers do not poll Parliament individually.
+- While viewers are connected, the coordinator checks the Parliament petition API every two seconds. It stops polling when the last viewer disconnects; a five-minute scheduled check keeps the history and health status current while idle.
+- D1 stores changed signature counts and scheduled heartbeat checks. Repeated unchanged samples are not stored, and a failed check does not replace the last valid count.
+- A separate Durable Object handles demo state. It has no access to petition polling or D1.
+- WebSocket connections use Durable Object hibernation. On reconnect, the overlay resynchronizes with the latest persisted count.
+
+## Deploy
+
+The D1 database, Durable Object bindings, and migrations are configured in `wrangler.jsonc`. Apply the D1 migrations and deploy the Worker:
 
 ```powershell
 bun run db:migrate:remote
 bun run deploy
 ```
 
-Cron changes can take several minutes to propagate across Cloudflare.
+Cron schedule changes can take several minutes to propagate across Cloudflare.
